@@ -16,7 +16,7 @@ int main(){
     const auto errors_in_h_2 = calculate_errors(analytic_integral, integrals_in_h_2);
 
     print_error_table(errors_in_h, errors_in_h_2);
-
+    
     delete[] grid_f_in_h;
     delete[] grid_f_in_h_2;
     delete[] integrals_in_h;

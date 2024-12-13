@@ -74,19 +74,20 @@ const T* gen_grid_func_and_analyt_integrate(
         delete[] grid_x;
     }
     else { // Массив старой сетки существует, нужно измельчить сетку функции
-        count_nodes_out = count_nodes_init * ratio - 1; //-1 проверяется на листке бумаги
-        T step = std::abs(b-a) / (count_nodes_out - 1);
-        const T* grid_x = gen_uniform_grid(step, count_nodes_out, a, b); //Пересоздаем сетку на оси x(По производительности уступает на 15%, однако поскольку в дальнейшем не используется существенная экономия памяти)
+        count_nodes_out = count_nodes_init * ratio - (ratio - 1); // Корректный расчёт количества узлов
+        T step = std::abs(b - a) / (count_nodes_out - 1);
+        const T* grid_x = gen_uniform_grid(step, count_nodes_out, a, b); // Пересоздаём сетку на оси x
         arr_func = new T[count_nodes_out]{};
 
-        for (std::size_t i = 0; i < count_nodes_init - 1; i++){ //Не доходим до последнего элемента, чтобы не выходить за границы массива
-            arr_func[ratio * i] = func_rare[i]; //Каждый nй (2-й) элемент новой сетки это элемент старой сетки
-            arr_func[ratio * i + 1] = func(grid_x[ratio * i + 1]); // Пересчитываем значение
+        for (std::size_t i = 0; i < count_nodes_init - 1; i++) { // Обрабатываем до предпоследнего узла
+            arr_func[ratio * i] = func_rare[i]; // Значения старой сетки
+            for (std::size_t j = 1; j < ratio; j++)// Промежуточные значения
+                arr_func[ratio * i + j] = func(grid_x[ratio * i + j]);
         }
-        arr_func[count_nodes_out - 1] = func_rare[count_nodes_init - 1]; // Последние элементы совпадают
+        // Последний элемент сетки
+        arr_func[count_nodes_out - 1] = func_rare[count_nodes_init - 1]; // Последний узел
         delete[] grid_x;
     }
-    
     return arr_func;
 }
 
@@ -145,14 +146,15 @@ const T* calculate_numerical_integrals(const T* func, const std::size_t count_no
     static auto simpson_calc = [](const T* func, const T step, const std::size_t i) -> T {
         constexpr T weigth[3] = {1.0, 4.0, 1.0};
         T f = weigth[0] * func[i] + weigth[1] * func[i + 1] + weigth[2] * func[i + 2]; 
-        return (step / 3.0)* f; // ((x_2 - x_0) / 6) * (f(x_0) + 4f(x_1) + f(x_2)) 
+        return (step / 3.0) * f; // ((x_2 - x_0) / 6) * (f(x_0) + 4f(x_1) + f(x_2)) 
     };
 
     // Формула Ньютона-Котеса для 5 узлов 
     static auto newton_cotes_calc = [](const T* func, const T step, const std::size_t i) -> T {
-        constexpr T weigth[5] = {7, 32, 12, 32, 7};
+        constexpr T weigth[5] = {7.0, 32.0, 12.0, 32.0, 7.0};
+        constexpr T weigthC = 2.0 / 45.0;
         T f = weigth[0] * func[i] + weigth[1] * func[i + 1] + weigth[2] * func[i + 2] + weigth[3] * func[i + 3] + weigth[4] * func[i + 4];
-        return (2.0 / 45.0) * step * f; // 2/45 * h * (7f_0 + 32f_1 + 12f_2 + 32f_3 + 7f_4)
+        return weigthC * step * f; // 2/45 * h * (7f_0 + 32f_1 + 12f_2 + 32f_3 + 7f_4)
     };
 
     // Формула Гаусса для 3х узлов
@@ -232,13 +234,18 @@ void print_error_table(const T* errors_h, const T* errors_h_2){
 
     std::cout << std::string(61, '-') << "\n";
     print_row("Rectangles", errors_h[Method::Rectangles], errors_h_2[Method::Rectangles]);
+
     std::cout << std::string(61, '-') << "\n";
     print_row("Trapeze", errors_h[Method::Trapeze], errors_h_2[Method::Trapeze]);
+
     std::cout << std::string(61, '-') << "\n";
     print_row("Simpson", errors_h[Method::Simpson], errors_h_2[Method::Simpson]);
+
     std::cout << std::string(61, '-') << "\n";
     print_row("NewtonCotes", errors_h[Method::NewtonCotes], errors_h_2[Method::NewtonCotes]);
+
     std::cout << std::string(61, '-') << "\n";
     print_row("Gauss", errors_h[Method::Gauss], errors_h_2[Method::Gauss]);
+
     std::cout << std::string(61, '-') << "\n";
 }
